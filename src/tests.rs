@@ -52,6 +52,39 @@ fn test_comparing() {
 }
 
 #[test]
+fn test_comparing_ref() {
+    assert_comparator! {
+        comparing_ref(|v: &Person| v.name),
+        &Person { name: "Baz", age: 32 },
+        <, &Person { name: "Bar", age: 32 },
+        =, &Person { name: "Baz", age: 32 },
+        >, &Person { name: "Foo", age: 32 }
+    }
+}
+
+#[test]
+fn test_comparing_with() {
+    assert_comparator! {
+        comparing_with(|v: &Person| v.age, reverse_order()),
+        &Person { name: "Foo", age: 32 },
+        <, &Person { name: "Bar", age: 33 },
+        =, &Person { name: "Bar", age: 32 },
+        >, &Person { name: "Bar", age: 31 }
+    }
+}
+
+#[test]
+fn test_comparing_ref_with() {
+    assert_comparator! {
+        comparing_ref_with(|v: &Person| v.name, reverse_order()),
+        &Person { name: "Baz", age: 32 },
+        <, &Person { name: "Foo", age: 32 },
+        =, &Person { name: "Baz", age: 32 },
+        >, &Person { name: "Bar", age: 32 }
+    }
+}
+
+#[test]
 fn test_partial_order_or() {
     assert_comparator! {
         partial_order_or(at_least(|f: &f64| f.is_nan())),
@@ -109,6 +142,16 @@ fn test_fn_comparator() {
         >, "FOO",
         >, "foo"
     }
+}
+
+#[test]
+fn test_max() {
+    assert_eq!(reverse_order().max(&1, &2), &1);
+}
+
+#[test]
+fn test_min() {
+    assert_eq!(reverse_order().min(&1, &2), &2);
 }
 
 fn test_eq<T: ?Sized>(under_test: impl EqClass<T>, left: &T, right: &T, expected: bool) {

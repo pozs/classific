@@ -53,7 +53,10 @@ pub trait Comparator<T: ?Sized> {
     ///     assert_eq!(comparator.cmp(a, b).reverse(), comparator.reversed().cmp(a, b));
     /// }
     /// ```
-    fn reversed(self) -> ReversedOrder<T, Self> where Self: Sized {
+    fn reversed(self) -> ReversedOrder<T, Self>
+    where
+        Self: Sized,
+    {
         ReversedOrder(self, PhantomData)
     }
 
@@ -70,8 +73,46 @@ pub trait Comparator<T: ?Sized> {
     ///
     /// assert_eq!(comparing(|t: &(i8, i8)| t.0).then(comparing(|t: &(i8, i8)| t.1)).cmp(&(1, 2), &(1, 3)), Ordering::Less);
     /// ```
-    fn then<N: Comparator<T>>(self, next: N) -> CompareThen<T, Self, N> where Self: Sized {
+    fn then<N>(self, next: N) -> CompareThen<T, Self, N>
+    where
+        Self: Sized,
+        N: Comparator<T>,
+    {
         CompareThen(self, next, PhantomData)
+    }
+
+    /// This function returns the greater instace (out of `left` and `right`)
+    /// according to [`cmp`](Comparator).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use classific::{Comparator, reverse_order};
+    ///
+    /// assert_eq!(reverse_order().max(&1, &2), &1);
+    /// ```
+    fn max<'a>(&self, left: &'a T, right: &'a T) -> &'a T {
+        match self.cmp(left, right) {
+            Ordering::Less => right,
+            _ => left,
+        }
+    }
+
+    /// This function returns the less instace (out of `left` and `right`)
+    /// according to [`cmp`](Comparator).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use classific::{Comparator, reverse_order};
+    ///
+    /// assert_eq!(reverse_order().min(&1, &2), &2);
+    /// ```
+    fn min<'a>(&self, left: &'a T, right: &'a T) -> &'a T {
+        match self.cmp(left, right) {
+            Ordering::Greater => right,
+            _ => left,
+        }
     }
 }
 
@@ -88,7 +129,10 @@ pub trait Comparator<T: ?Sized> {
 /// assert_eq!(natural_order().cmp(&2, &2), Ordering::Equal);
 /// assert_eq!(natural_order().cmp(&3, &2), Ordering::Greater);
 /// ```
-pub fn natural_order<T: ?Sized + Ord>() -> NaturalOrder<T> {
+pub fn natural_order<T>() -> NaturalOrder<T>
+where
+    T: ?Sized + Ord,
+{
     NaturalOrder(PhantomData)
 }
 
@@ -105,7 +149,10 @@ pub fn natural_order<T: ?Sized + Ord>() -> NaturalOrder<T> {
 /// assert_eq!(reverse_order().cmp(&2, &2), Ordering::Equal);
 /// assert_eq!(reverse_order().cmp(&1, &2), Ordering::Greater);
 /// ```
-pub fn reverse_order<T: ?Sized + Ord>() -> ReversedNaturalOrder<T> {
+pub fn reverse_order<T>() -> ReversedNaturalOrder<T>
+where
+    T: ?Sized + Ord,
+{
     ReversedNaturalOrder(PhantomData)
 }
 
@@ -120,8 +167,75 @@ pub fn reverse_order<T: ?Sized + Ord>() -> ReversedNaturalOrder<T> {
 ///
 /// assert_eq!(comparing(|t: &(i8, i8)| t.1).cmp(&(3, 1), &(2, 2)), Ordering::Less);
 /// ```
-pub fn comparing<S: ?Sized, T: ?Sized + Ord, F: Fn(&S) -> T>(map: F) -> Comparing<S, T, F> {
+pub fn comparing<S, T, F>(map: F) -> Comparing<S, T, F>
+where
+    S: ?Sized,
+    T: ?Sized + Ord,
+    F: Fn(&S) -> T,
+{
     Comparing(map, PhantomData, PhantomData)
+}
+
+/// This function returns a [`Comparator`] for `S` which first maps values to `&T`
+/// then compare them with [`Ord::cmp`].
+///
+/// # Examples
+///
+/// ```
+/// use std::cmp::Ordering;
+/// use classific::{Comparator, comparing_ref};
+///
+/// assert_eq!(comparing_ref(|t: &(i8, i8)| &t.1).cmp(&(3, 1), &(2, 2)), Ordering::Less);
+/// ```
+pub fn comparing_ref<S, T, F>(map: F) -> ComparingRef<S, T, F>
+where
+    S: ?Sized,
+    T: ?Sized + Ord,
+    F: Fn(&S) -> &T,
+{
+    ComparingRef(map, PhantomData, PhantomData)
+}
+
+/// This function returns a [`Comparator`] for `S` which first maps values to `T`
+/// then compare them with [`cmp`](Comparator).
+///
+/// # Examples
+///
+/// ```
+/// use std::cmp::Ordering;
+/// use classific::{Comparator, comparing_with, reverse_order};
+///
+/// assert_eq!(comparing_with(|t: &(i8, i8)| t.1, reverse_order()).cmp(&(3, 1), &(2, 2)), Ordering::Greater);
+/// ```
+pub fn comparing_with<S, T, F, C>(map: F, cmp: C) -> ComparingWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: ?Sized + Ord,
+    F: Fn(&S) -> T,
+    C: Comparator<T>,
+{
+    ComparingWith(map, cmp, PhantomData, PhantomData)
+}
+
+/// This function returns a [`Comparator`] for `S` which first maps values to `&T`
+/// then compare them with [`cmp`](Comparator).
+///
+/// # Examples
+///
+/// ```
+/// use std::cmp::Ordering;
+/// use classific::{Comparator, comparing_ref_with, reverse_order};
+///
+/// assert_eq!(comparing_ref_with(|t: &(i8, i8)| &t.1, reverse_order()).cmp(&(3, 1), &(2, 2)), Ordering::Greater);
+/// ```
+pub fn comparing_ref_with<S, T, F, C>(map: F, cmp: C) -> ComparingRefWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: ?Sized + Ord,
+    F: Fn(&S) -> &T,
+    C: Comparator<T>,
+{
+    ComparingRefWith(map, cmp, PhantomData, PhantomData)
 }
 
 /// This function returns a [`Comparator`] for `T` which follows the semantics of
@@ -140,7 +254,11 @@ pub fn comparing<S: ?Sized, T: ?Sized + Ord, F: Fn(&S) -> T>(map: F) -> Comparin
 /// assert_eq!(partial_order_or(at_least(|f: &f64| f.is_nan())).cmp(&f64::NAN, &f64::NAN), Ordering::Equal);
 /// assert_eq!(partial_order_or(at_least(|f: &f64| f.is_nan())).cmp(&1_f64, &f64::NAN), Ordering::Greater);
 /// ```
-pub fn partial_order_or<T: ?Sized + PartialOrd<T>, C: Comparator<T>>(cmp: C) -> PartialOrderOr<T, C> {
+pub fn partial_order_or<T, C>(cmp: C) -> PartialOrderOr<T, C>
+where
+    T: ?Sized + PartialOrd<T>,
+    C: Comparator<T>,
+{
     PartialOrderOr(cmp, PhantomData)
 }
 
@@ -165,7 +283,11 @@ pub fn partial_order_or<T: ?Sized + PartialOrd<T>, C: Comparator<T>>(cmp: C) -> 
 /// assert_eq!(partial_order_or(at_least(|f: &f64| f.is_nan())).cmp(&f64::NAN, &f64::NAN), Ordering::Equal);
 /// assert_eq!(partial_order_or(at_least(|f: &f64| f.is_nan())).cmp(&1_f64, &f64::NAN), Ordering::Greater);
 /// ```
-pub fn at_least<T: ?Sized, F: Fn(&T) -> bool>(is_at_least: F) -> AtLeast<T, F> {
+pub fn at_least<T, F>(is_at_least: F) -> AtLeast<T, F>
+where
+    T: ?Sized,
+    F: Fn(&T) -> bool,
+{
     AtLeast(is_at_least, PhantomData)
 }
 
@@ -190,7 +312,11 @@ pub fn at_least<T: ?Sized, F: Fn(&T) -> bool>(is_at_least: F) -> AtLeast<T, F> {
 /// assert_eq!(partial_order_or(at_greatest(|f: &f64| f.is_nan())).cmp(&f64::NAN, &f64::NAN), Ordering::Equal);
 /// assert_eq!(partial_order_or(at_greatest(|f: &f64| f.is_nan())).cmp(&1_f64, &f64::NAN), Ordering::Less);
 /// ```
-pub fn at_greatest<T: ?Sized, F: Fn(&T) -> bool>(is_at_greatest: F) -> AtGreatest<T, F> {
+pub fn at_greatest<T, F>(is_at_greatest: F) -> AtGreatest<T, F>
+where
+    T: ?Sized,
+    F: Fn(&T) -> bool,
+{
     AtGreatest(is_at_greatest, PhantomData)
 }
 
@@ -207,11 +333,18 @@ pub fn at_greatest<T: ?Sized, F: Fn(&T) -> bool>(is_at_greatest: F) -> AtGreates
 /// slice.sort_by(move_to_cmp_fn(reverse_order()));
 /// assert_eq!(slice, &[2, 1]);
 /// ```
-pub fn move_to_cmp_fn<T: ?Sized>(comparator: impl Comparator<T>) -> impl Fn(&T, &T) -> Ordering {
+pub fn move_to_cmp_fn<T>(comparator: impl Comparator<T>) -> impl Fn(&T, &T) -> Ordering
+where
+    T: ?Sized,
+{
     move |left, right| comparator.cmp(left, right)
 }
 
-impl<T: ?Sized, F: Fn(&T, &T) -> Ordering> Comparator<T> for F {
+impl<T, F> Comparator<T> for F
+where
+    T: ?Sized,
+    F: Fn(&T, &T) -> Ordering,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         self(left, right)
     }
@@ -219,11 +352,12 @@ impl<T: ?Sized, F: Fn(&T, &T) -> Ordering> Comparator<T> for F {
 
 /// See [`natural_order`].
 #[derive(Copy, Clone, Debug)]
-pub struct NaturalOrder<T: ?Sized + Ord>(
-    PhantomData<*const T>,
-);
+pub struct NaturalOrder<T: ?Sized + Ord>(PhantomData<*const T>);
 
-impl<T: ?Sized + Ord> Comparator<T> for NaturalOrder<T> {
+impl<T> Comparator<T> for NaturalOrder<T>
+where
+    T: ?Sized + Ord,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         left.cmp(right)
     }
@@ -231,11 +365,12 @@ impl<T: ?Sized + Ord> Comparator<T> for NaturalOrder<T> {
 
 /// See [`reversed_order`].
 #[derive(Copy, Clone, Debug)]
-pub struct ReversedNaturalOrder<T: ?Sized + Ord>(
-    PhantomData<*const T>,
-);
+pub struct ReversedNaturalOrder<T: ?Sized + Ord>(PhantomData<*const T>);
 
-impl<T: ?Sized + Ord> Comparator<T> for ReversedNaturalOrder<T> {
+impl<T> Comparator<T> for ReversedNaturalOrder<T>
+where
+    T: ?Sized + Ord,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         right.cmp(left)
     }
@@ -243,12 +378,13 @@ impl<T: ?Sized + Ord> Comparator<T> for ReversedNaturalOrder<T> {
 
 /// See [`Comparator::reversed`].
 #[derive(Copy, Clone, Debug)]
-pub struct ReversedOrder<T: ?Sized, C: Comparator<T>>(
-    C,
-    PhantomData<*const T>,
-);
+pub struct ReversedOrder<T: ?Sized, C: Comparator<T>>(C, PhantomData<*const T>);
 
-impl<T: ?Sized, C: Comparator<T>> Comparator<T> for ReversedOrder<T, C> {
+impl<T, C> Comparator<T> for ReversedOrder<T, C>
+where
+    T: ?Sized,
+    C: Comparator<T>,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         self.0.cmp(right, left)
     }
@@ -262,20 +398,87 @@ pub struct Comparing<S: ?Sized, T: ?Sized + Ord, F: Fn(&S) -> T>(
     PhantomData<*const T>,
 );
 
-impl<S: ?Sized, T: Ord, F: Fn(&S) -> T> Comparator<S> for Comparing<S, T, F> {
+impl<S, T, F> Comparator<S> for Comparing<S, T, F>
+where
+    S: ?Sized,
+    T: Ord,
+    F: Fn(&S) -> T,
+{
     fn cmp(&self, left: &S, right: &S) -> Ordering {
         Ord::cmp(&self.0(left), &self.0(right))
     }
 }
 
-/// See [`partial_order_or`].
+/// See [`comparing_ref`].
 #[derive(Copy, Clone, Debug)]
-pub struct PartialOrderOr<T: ?Sized + PartialOrd<T>, C: Comparator<T>>(
-    C,
+pub struct ComparingRef<S: ?Sized, T: ?Sized + Ord, F: Fn(&S) -> &T>(
+    F,
+    PhantomData<*const S>,
     PhantomData<*const T>,
 );
 
-impl<T: ?Sized + PartialOrd<T>, C: Comparator<T>> Comparator<T> for PartialOrderOr<T, C> {
+impl<S, T, F> Comparator<S> for ComparingRef<S, T, F>
+where
+    S: ?Sized,
+    T: ?Sized + Ord,
+    F: Fn(&S) -> &T,
+{
+    fn cmp(&self, left: &S, right: &S) -> Ordering {
+        Ord::cmp(self.0(left), self.0(right))
+    }
+}
+
+/// See [`comparing_with`].
+#[derive(Copy, Clone, Debug)]
+pub struct ComparingWith<S: ?Sized, T: ?Sized + Ord, F: Fn(&S) -> T, C: Comparator<T>>(
+    F,
+    C,
+    PhantomData<*const S>,
+    PhantomData<*const T>,
+);
+
+impl<S, T, F, C> Comparator<S> for ComparingWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: Ord,
+    F: Fn(&S) -> T,
+    C: Comparator<T>,
+{
+    fn cmp(&self, left: &S, right: &S) -> Ordering {
+        self.1.cmp(&self.0(left), &self.0(right))
+    }
+}
+
+/// See [`comparing_ref_with`].
+#[derive(Copy, Clone, Debug)]
+pub struct ComparingRefWith<S: ?Sized, T: ?Sized + Ord, F: Fn(&S) -> &T, C: Comparator<T>>(
+    F,
+    C,
+    PhantomData<*const S>,
+    PhantomData<*const T>,
+);
+
+impl<S, T, F, C> Comparator<S> for ComparingRefWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: ?Sized + Ord,
+    F: Fn(&S) -> &T,
+    C: Comparator<T>,
+{
+    fn cmp(&self, left: &S, right: &S) -> Ordering {
+        self.1.cmp(self.0(left), self.0(right))
+    }
+}
+
+/// See [`partial_order_or`].
+#[derive(Copy, Clone, Debug)]
+pub struct PartialOrderOr<T: ?Sized + PartialOrd<T>, C: Comparator<T>>(C, PhantomData<*const T>);
+
+impl<T, C> Comparator<T> for PartialOrderOr<T, C>
+where
+    T: ?Sized + PartialOrd<T>,
+    C: Comparator<T>,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         match left.partial_cmp(right) {
             Some(ord) => ord,
@@ -286,12 +489,13 @@ impl<T: ?Sized + PartialOrd<T>, C: Comparator<T>> Comparator<T> for PartialOrder
 
 /// See [`at_least`].
 #[derive(Copy, Clone, Debug)]
-pub struct AtLeast<T: ?Sized, F: Fn(&T) -> bool>(
-    F,
-    PhantomData<*const T>,
-);
+pub struct AtLeast<T: ?Sized, F: Fn(&T) -> bool>(F, PhantomData<*const T>);
 
-impl<T: ?Sized, F: Fn(&T) -> bool> Comparator<T> for AtLeast<T, F> {
+impl<T, F> Comparator<T> for AtLeast<T, F>
+where
+    T: ?Sized,
+    F: Fn(&T) -> bool,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         match (self.0(left), self.0(right)) {
             (a, b) if a == b => Ordering::Equal,
@@ -303,12 +507,13 @@ impl<T: ?Sized, F: Fn(&T) -> bool> Comparator<T> for AtLeast<T, F> {
 
 /// See [`at_greatest`].
 #[derive(Copy, Clone, Debug)]
-pub struct AtGreatest<T: ?Sized, F: Fn(&T) -> bool>(
-    F,
-    PhantomData<*const T>,
-);
+pub struct AtGreatest<T: ?Sized, F: Fn(&T) -> bool>(F, PhantomData<*const T>);
 
-impl<T: ?Sized, F: Fn(&T) -> bool> Comparator<T> for AtGreatest<T, F> {
+impl<T, F> Comparator<T> for AtGreatest<T, F>
+where
+    T: ?Sized,
+    F: Fn(&T) -> bool,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         match (self.0(left), self.0(right)) {
             (a, b) if a == b => Ordering::Equal,
@@ -320,13 +525,14 @@ impl<T: ?Sized, F: Fn(&T) -> bool> Comparator<T> for AtGreatest<T, F> {
 
 /// See [`Comparator::then`].
 #[derive(Copy, Clone, Debug)]
-pub struct CompareThen<T: ?Sized, C: Comparator<T>, N: Comparator<T>>(
-    C,
-    N,
-    PhantomData<*const T>,
-);
+pub struct CompareThen<T: ?Sized, C: Comparator<T>, N: Comparator<T>>(C, N, PhantomData<*const T>);
 
-impl<T: ?Sized, C: Comparator<T>, N: Comparator<T>> Comparator<T> for CompareThen<T, C, N> {
+impl<T, C, N> Comparator<T> for CompareThen<T, C, N>
+where
+    T: ?Sized,
+    C: Comparator<T>,
+    N: Comparator<T>,
+{
     fn cmp(&self, left: &T, right: &T) -> Ordering {
         match self.0.cmp(left, right) {
             Ordering::Equal => self.1.cmp(left, right),
@@ -375,7 +581,11 @@ pub trait EqClass<T: ?Sized> {
     ///
     /// assert!(eq_by(|t: &(i8, i8, i8)| t.0).and(eq_by(|t: &(i8, i8, i8)| t.1)).eq(&(1, 2, 3), &(1, 2, 1)));
     /// ```
-    fn and<N: EqClass<T>>(self, next: N) -> BothEq<T, Self, N> where Self: Sized {
+    fn and<N>(self, next: N) -> BothEq<T, Self, N>
+    where
+        Self: Sized,
+        N: EqClass<T>,
+    {
         BothEq(self, next, PhantomData)
     }
 }
@@ -390,7 +600,10 @@ pub trait EqClass<T: ?Sized> {
 ///
 /// assert!(natural_eq().eq(&1, &1));
 /// ```
-pub fn natural_eq<T: ?Sized + PartialEq<T>>() -> NaturalEq<T> {
+pub fn natural_eq<T>() -> NaturalEq<T>
+where
+    T: ?Sized + PartialEq<T>,
+{
     NaturalEq(PhantomData)
 }
 
@@ -404,7 +617,12 @@ pub fn natural_eq<T: ?Sized + PartialEq<T>>() -> NaturalEq<T> {
 ///
 /// assert!(eq_by(|t: &(i8, i8)| t.1).eq(&(1, 2), &(3, 2)));
 /// ```
-pub fn eq_by<S: ?Sized, T: ?Sized + PartialEq<T>, F: Fn(&S) -> T>(map: F) -> EqBy<S, T, F> {
+pub fn eq_by<S, T, F>(map: F) -> EqBy<S, T, F>
+where
+    S: ?Sized,
+    T: ?Sized + PartialEq<T>,
+    F: Fn(&S) -> T,
+{
     EqBy(map, PhantomData, PhantomData)
 }
 
@@ -418,7 +636,10 @@ pub fn eq_by<S: ?Sized, T: ?Sized + PartialEq<T>, F: Fn(&S) -> T>(map: F) -> EqB
 ///
 /// assert!(eq_by_hash().eq(&1, &1));
 /// ```
-pub fn eq_by_hash<T: ?Sized + Hash>() -> EqByHash<T> {
+pub fn eq_by_hash<T>() -> EqByHash<T>
+where
+    T: ?Sized + Hash,
+{
     EqByHash(PhantomData)
 }
 
@@ -432,7 +653,11 @@ pub fn eq_by_hash<T: ?Sized + Hash>() -> EqByHash<T> {
 ///
 /// assert!(eq_by_cmp(comparing(|s: &str| s.to_ascii_uppercase())).eq("Foo", "FOO"));
 /// ```
-pub fn eq_by_cmp<T: ?Sized, C: Comparator<T>>(cmp: C) -> EqByCmp<T, C> {
+pub fn eq_by_cmp<T, C>(cmp: C) -> EqByCmp<T, C>
+where
+    T: ?Sized,
+    C: Comparator<T>,
+{
     EqByCmp(cmp, PhantomData)
 }
 
@@ -453,11 +678,18 @@ pub fn eq_by_cmp<T: ?Sized, C: Comparator<T>>(cmp: C) -> EqByCmp<T, C> {
 /// });
 /// assert!(r.is_some());
 /// ```
-pub fn move_to_eq_fn<T: ?Sized>(eq_class: impl EqClass<T>) -> impl Fn(&T, &T) -> bool {
+pub fn move_to_eq_fn<T>(eq_class: impl EqClass<T>) -> impl Fn(&T, &T) -> bool
+where
+    T: ?Sized,
+{
     move |left, right| eq_class.eq(left, right)
 }
 
-impl<T: ?Sized, F: Fn(&T, &T) -> bool> EqClass<T> for F {
+impl<T, F> EqClass<T> for F
+where
+    T: ?Sized,
+    F: Fn(&T, &T) -> bool,
+{
     fn eq(&self, left: &T, right: &T) -> bool {
         self(left, right)
     }
@@ -465,11 +697,12 @@ impl<T: ?Sized, F: Fn(&T, &T) -> bool> EqClass<T> for F {
 
 /// See [`natural_eq`].
 #[derive(Copy, Clone, Debug)]
-pub struct NaturalEq<T: ?Sized + PartialEq<T>>(
-    PhantomData<*const T>,
-);
+pub struct NaturalEq<T: ?Sized + PartialEq<T>>(PhantomData<*const T>);
 
-impl<T: ?Sized + PartialEq<T>> EqClass<T> for NaturalEq<T> {
+impl<T> EqClass<T> for NaturalEq<T>
+where
+    T: ?Sized + PartialEq<T>,
+{
     fn eq(&self, left: &T, right: &T) -> bool {
         left.eq(right)
     }
@@ -483,7 +716,12 @@ pub struct EqBy<S: ?Sized, T: ?Sized + PartialEq<T>, F: Fn(&S) -> T>(
     PhantomData<*const T>,
 );
 
-impl<S: ?Sized, T: PartialEq<T>, F: Fn(&S) -> T> EqClass<S> for EqBy<S, T, F> {
+impl<S, T, F> EqClass<S> for EqBy<S, T, F>
+where
+    S: ?Sized,
+    T: PartialEq<T>,
+    F: Fn(&S) -> T,
+{
     fn eq(&self, left: &S, right: &S) -> bool {
         self.0(left) == self.0(right)
     }
@@ -491,11 +729,12 @@ impl<S: ?Sized, T: PartialEq<T>, F: Fn(&S) -> T> EqClass<S> for EqBy<S, T, F> {
 
 /// See [`eq_by_hash`].
 #[derive(Copy, Clone, Debug)]
-pub struct EqByHash<T: ?Sized + Hash>(
-    PhantomData<*const T>,
-);
+pub struct EqByHash<T: ?Sized + Hash>(PhantomData<*const T>);
 
-impl<T: ?Sized + Hash> EqClass<T> for EqByHash<T> {
+impl<T> EqClass<T> for EqByHash<T>
+where
+    T: ?Sized + Hash,
+{
     fn eq(&self, left: &T, right: &T) -> bool {
         #[inline]
         fn hash<T: ?Sized + Hash>(to_hash: &T) -> u64 {
@@ -510,12 +749,13 @@ impl<T: ?Sized + Hash> EqClass<T> for EqByHash<T> {
 
 /// See [`eq_by_cmp`].
 #[derive(Copy, Clone, Debug)]
-pub struct EqByCmp<T: ?Sized, C: Comparator<T>>(
-    C,
-    PhantomData<*const T>,
-);
+pub struct EqByCmp<T: ?Sized, C: Comparator<T>>(C, PhantomData<*const T>);
 
-impl<T: ?Sized, C: Comparator<T>> EqClass<T> for EqByCmp<T, C> {
+impl<T, C> EqClass<T> for EqByCmp<T, C>
+where
+    T: ?Sized,
+    C: Comparator<T>,
+{
     fn eq(&self, left: &T, right: &T) -> bool {
         Ordering::Equal == self.0.cmp(left, right)
     }
@@ -523,13 +763,14 @@ impl<T: ?Sized, C: Comparator<T>> EqClass<T> for EqByCmp<T, C> {
 
 /// See [`EqClass::and`].
 #[derive(Copy, Clone, Debug)]
-pub struct BothEq<T: ?Sized, C: EqClass<T>, N: EqClass<T>>(
-    C,
-    N,
-    PhantomData<*const T>,
-);
+pub struct BothEq<T: ?Sized, C: EqClass<T>, N: EqClass<T>>(C, N, PhantomData<*const T>);
 
-impl<T: ?Sized, C: EqClass<T>, N: EqClass<T>> EqClass<T> for BothEq<T, C, N> {
+impl<T, C, N> EqClass<T> for BothEq<T, C, N>
+where
+    T: ?Sized,
+    C: EqClass<T>,
+    N: EqClass<T>,
+{
     fn eq(&self, left: &T, right: &T) -> bool {
         self.0.eq(left, right) && self.1.eq(left, right)
     }
