@@ -5,7 +5,5 @@ rust:
   - nightly
 jobs:
   allow_failures:
-    - rust:
-      - beta
-      - nightly
+    - rust: nightly
   fast_finish: true
