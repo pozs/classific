@@ -1,6 +1,6 @@
 [package]
 name = "classific"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["David Pozsar <david.pozsar@gmail.com>"]
 description = "Classifications, comparator and equivalence class implementations"
 license = "MIT OR Apache-2.0"

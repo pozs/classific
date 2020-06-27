@@ -177,6 +177,12 @@ fn test_natural_eq() {
 }
 
 #[test]
+fn test_partial_eq() {
+    assert_eq_class!(partial_eq(), &f64::NAN, =, &f64::NAN, !, &1_f64);
+    assert_eq_class!(partial_eq(), &1_f64, =, &1_f64, !, &f64::NAN);
+}
+
+#[test]
 fn test_eq_by_hash() {
     assert_eq_class!(eq_by_hash(), &2, =, &2, !, &3);
 }
@@ -196,6 +202,37 @@ fn test_eq_by_cmp() {
 #[test]
 fn test_eq_by() {
     assert_eq_class!(eq_by(|v| v % 6), &2, =, &2, =, &8, !, &9);
+}
+
+#[test]
+fn test_eq_by_ref() {
+    assert_eq_class! {
+        eq_by_ref(|v: &Person| v.name),
+        &Person { name: "Foo", age: 32 },
+        =, &Person { name: "Foo", age: 33 },
+        !, &Person { name: "Bar", age: 32 }
+    }
+}
+
+#[test]
+fn test_eq_by_with() {
+    assert_eq_class! {
+        eq_by_with(|v: &Person| v.age, eq_by(|v| v % 6)),
+        &Person { name: "Foo", age: 32 },
+        =, &Person { name: "Bar", age: 26 },
+        !, &Person { name: "Foo", age: 28 }
+    }
+}
+
+#[test]
+fn test_eq_by_ref_with() {
+    assert_eq_class! {
+        eq_by_ref_with(|v: &Person| v.name, |left: &str, right: &str| left.eq_ignore_ascii_case(right)),
+        &Person { name: "Foo", age: 32 },
+        =, &Person { name: "foo", age: 33 },
+        =, &Person { name: "FOO", age: 33 },
+        !, &Person { name: "Bar", age: 32 }
+    }
 }
 
 #[test]

@@ -242,7 +242,7 @@ where
 /// [`PartialOrd::partial_cmp`] but when that returns [`None`](Option::None) it calls
 /// the underlying [`Comparator`] `cmp`.
 ///
-/// See [`at_least`].
+/// See [`at_least`] and [`at_greatest`].
 ///
 /// # Examples
 ///
@@ -262,7 +262,8 @@ where
     PartialOrderOr(cmp, PhantomData)
 }
 
-/// This function returns a [`Comparator`] for `T` which divides `T` instances into 2 categories:
+/// This function returns a [`Comparator`] for `T` which divides `T` instances into 2 categories.
+///
 /// - the ones for which `is_at_least` returns `true`:
 ///   these are considered [`Ordering::Less`] than the other category,
 ///   and [`Ordering::Equal`] to each other
@@ -270,8 +271,7 @@ where
 ///   these are considered [`Ordering::Greater`] than the other category,
 ///   and [`Ordering::Equal`] to each other
 ///
-/// See [`at_greatest`].
-/// See [`partial_order_or`].
+/// See [`at_greatest`] and [`partial_order_or`].
 ///
 /// # Examples
 ///
@@ -291,7 +291,8 @@ where
     AtLeast(is_at_least, PhantomData)
 }
 
-/// This function returns a [`Comparator`] for `T` which divides `T` instances into 2 categories:
+/// This function returns a [`Comparator`] for `T` which divides `T` instances into 2 categories.
+///
 /// - the ones for which `is_at_least` returns `true`:
 ///   these are considered [`Ordering::Less`] than the other category,
 ///   and [`Ordering::Equal`] to each other
@@ -299,8 +300,7 @@ where
 ///   these are considered [`Ordering::Greater`] than the other category,
 ///   and [`Ordering::Equal`] to each other
 ///
-/// See [`at_least`].
-/// See [`partial_order_or`].
+/// See [`at_least`] and [`partial_order_or`].
 ///
 /// # Examples
 ///
@@ -607,6 +607,24 @@ where
     NaturalEq(PhantomData)
 }
 
+/// This function returns an [`EqClass`] for `T` which
+/// follows
+/// the semantics of [`PartialEq::eq`].
+///
+/// # Examples
+///
+/// ```
+/// use classific::{EqClass, partial_eq};
+///
+/// assert!(partial_eq().eq(&f64::NAN, &f64::NAN));
+/// ```
+pub fn partial_eq<T>() -> PartialEqClass<T>
+where
+    T: ?Sized + PartialEq<T>,
+{
+    PartialEqClass(PhantomData)
+}
+
 /// This function returns an [`EqClass`] for `S` which first maps values to `T`
 /// then compare them with [`PartialEq::eq`].
 ///
@@ -624,6 +642,65 @@ where
     F: Fn(&S) -> T,
 {
     EqBy(map, PhantomData, PhantomData)
+}
+
+/// This function returns an [`EqClass`] for `S` which first maps values to `&T`
+/// then compare them with [`PartialEq::eq`].
+///
+/// # Examples
+///
+/// ```
+/// use classific::{EqClass, eq_by_ref};
+///
+/// assert!(eq_by_ref(|t: &(i8, &'static str)| &t.1).eq(&(1, "2"), &(3, "2")));
+/// ```
+pub fn eq_by_ref<S, T, F>(map: F) -> EqByRef<S, T, F>
+where
+    S: ?Sized,
+    T: ?Sized + PartialEq<T>,
+    F: Fn(&S) -> &T,
+{
+    EqByRef(map, PhantomData, PhantomData)
+}
+
+/// This function returns an [`EqClass`] for `S` which first maps values to `T`
+/// then compare them with [`PartialEq::eq`].
+///
+/// # Examples
+///
+/// ```
+/// use classific::{EqClass, eq_by};
+///
+/// assert!(eq_by(|t: &(i8, i8)| t.1).eq(&(1, 2), &(3, 2)));
+/// ```
+pub fn eq_by_with<S, T, F, C>(map: F, eq: C) -> EqByWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: ?Sized + PartialEq<T>,
+    F: Fn(&S) -> T,
+    C: EqClass<T>,
+{
+    EqByWith(map, eq, PhantomData, PhantomData)
+}
+
+/// This function returns an [`EqClass`] for `S` which first maps values to `&T`
+/// then compare them with [`PartialEq::eq`].
+///
+/// # Examples
+///
+/// ```
+/// use classific::{EqClass, eq_by_ref};
+///
+/// assert!(eq_by_ref(|t: &(i8, &'static str)| &t.1).eq(&(1, "2"), &(3, "2")));
+/// ```
+pub fn eq_by_ref_with<S, T, F, C>(map: F, eq: C) -> EqByRefWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: ?Sized + PartialEq<T>,
+    F: Fn(&S) -> &T,
+    C: EqClass<T>,
+{
+    EqByRefWith(map, eq, PhantomData, PhantomData)
 }
 
 /// This function returns an [`EqClass`] for `T` which considers instances equal
@@ -708,6 +785,23 @@ where
     }
 }
 
+/// See [`partial_eq`].
+#[derive(Copy, Clone, Debug)]
+pub struct PartialEqClass<T: ?Sized + PartialEq<T>>(PhantomData<*const T>);
+
+impl<T> EqClass<T> for PartialEqClass<T>
+where
+    T: ?Sized + PartialEq<T>,
+{
+    fn eq(&self, left: &T, right: &T) -> bool {
+        match (left.eq(left), right.eq(right)) {
+            (false, false) => true,
+            (true, true) => left.eq(right),
+            _ => false,
+        }
+    }
+}
+
 /// See [`eq_by`].
 #[derive(Copy, Clone, Debug)]
 pub struct EqBy<S: ?Sized, T: ?Sized + PartialEq<T>, F: Fn(&S) -> T>(
@@ -723,7 +817,68 @@ where
     F: Fn(&S) -> T,
 {
     fn eq(&self, left: &S, right: &S) -> bool {
-        self.0(left) == self.0(right)
+        self.0(left).eq(&self.0(right))
+    }
+}
+
+/// See [`eq_by_ref`].
+#[derive(Copy, Clone, Debug)]
+pub struct EqByRef<S: ?Sized, T: ?Sized + PartialEq<T>, F: Fn(&S) -> &T>(
+    F,
+    PhantomData<*const S>,
+    PhantomData<*const T>,
+);
+
+impl<S, T, F> EqClass<S> for EqByRef<S, T, F>
+where
+    S: ?Sized,
+    T: ?Sized + PartialEq<T>,
+    F: Fn(&S) -> &T,
+{
+    fn eq(&self, left: &S, right: &S) -> bool {
+        self.0(left).eq(self.0(right))
+    }
+}
+
+/// See [`eq_by_with`].
+#[derive(Copy, Clone, Debug)]
+pub struct EqByWith<S: ?Sized, T: ?Sized + PartialEq<T>, F: Fn(&S) -> T, C: EqClass<T>>(
+    F,
+    C,
+    PhantomData<*const S>,
+    PhantomData<*const T>,
+);
+
+impl<S, T, F, C> EqClass<S> for EqByWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: PartialEq<T>,
+    F: Fn(&S) -> T,
+    C: EqClass<T>,
+{
+    fn eq(&self, left: &S, right: &S) -> bool {
+        self.1.eq(&self.0(left), &self.0(right))
+    }
+}
+
+/// See [`eq_by_ref_with`].
+#[derive(Copy, Clone, Debug)]
+pub struct EqByRefWith<S: ?Sized, T: ?Sized + PartialEq<T>, F: Fn(&S) -> &T, C: EqClass<T>>(
+    F,
+    C,
+    PhantomData<*const S>,
+    PhantomData<*const T>,
+);
+
+impl<S, T, F, C> EqClass<S> for EqByRefWith<S, T, F, C>
+where
+    S: ?Sized,
+    T: ?Sized + PartialEq<T>,
+    F: Fn(&S) -> &T,
+    C: EqClass<T>,
+{
+    fn eq(&self, left: &S, right: &S) -> bool {
+        self.1.eq(self.0(left), self.0(right))
     }
 }
 
