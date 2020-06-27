@@ -607,9 +607,9 @@ where
     NaturalEq(PhantomData)
 }
 
-/// This function returns an [`EqClass`] for `T` which
-/// follows
-/// the semantics of [`PartialEq::eq`].
+/// This function returns an [`EqClass`] for `T` which considers every instance to be equal to every
+/// other instace where the instances do not equal to themselves by [`PartialEq::eq`]; otherwise
+/// [`PartialEq::eq`] is followed.
 ///
 /// # Examples
 ///
