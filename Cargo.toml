@@ -1,10 +1,10 @@
 [package]
 name = "classific"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["David Pozsar <david.pozsar@gmail.com>"]
 description = "Classifications, comparator and equivalence class implementations"
 license = "MIT OR Apache-2.0"
-repository = "https://gitlab.com/pozs/classific"
+repository = "https://github.com/pozs/classific"
 readme = "README.md"
 keywords = ["classification", "comparator", "equivalence", "equivalence-class"]
 categories = ["algorithms", "mathematics", "rust-patterns"]

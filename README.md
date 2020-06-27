@@ -2,6 +2,11 @@
 
 A Rust library for classifications like comparators and equivalence classes.
 
+Links:
+
+- Crate: https://crates.io/crates/classific
+- Documentation: https://docs.rs/classific
+
 ## Usage
 
 Add this to your `Cargo.toml`:

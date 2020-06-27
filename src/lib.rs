@@ -27,7 +27,7 @@ use std::marker::PhantomData;
 pub trait Comparator<T: ?Sized> {
     /// This method returns an [`Ordering`] between `left` and `right`.
     ///
-    /// By convention, `comparator.cmp(&left, &other)` returns the ordering matching the expression
+    /// By convention, `comparator.cmp(&left, &right)` returns the ordering matching the expression
     /// `left <operator> right` if true.
     ///
     /// # Examples
@@ -363,7 +363,7 @@ where
     }
 }
 
-/// See [`reversed_order`].
+/// See [`reverse_order`].
 #[derive(Copy, Clone, Debug)]
 pub struct ReversedNaturalOrder<T: ?Sized + Ord>(PhantomData<*const T>);
 
@@ -542,7 +542,7 @@ where
 }
 
 /// Implementations define an equivalence class over the type `T`, which *can* be semantically
-/// different from [`Eq::eq`].
+/// different from [`PartialEq::eq`].
 ///
 /// By convention, the equivalence class should fulfill the following properties
 /// (for all `a`, `b` and `c`):
@@ -671,9 +671,9 @@ where
 ///
 /// let mut iter = [(1, 1), (2, 1), (3, 1)].iter();
 /// let first = iter.next();
-/// let eq = eq_by(|i: &(i8, i8)| i.1);
+/// let eq = move_to_eq_fn(eq_by(|i: &(i8, i8)| i.1));
 /// let r = iter.fold(first, move |acc, next| match acc {
-///     Some(a) => if eq.eq(a, next) { Some(next) } else { None },
+///     Some(a) => if eq(a, next) { Some(next) } else { None },
 ///     none => none,
 /// });
 /// assert!(r.is_some());
