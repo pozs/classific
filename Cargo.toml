@@ -1,0 +1,7 @@
+[package]
+name = "classific"
+version = "0.1.0"
+authors = ["pozs"]
+edition = "2018"
+
+[dependencies]
