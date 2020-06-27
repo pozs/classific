@@ -1,4 +1,4 @@
-# Classific
+# Classific [![Build Status](https://travis-ci.com/pozs/classific.svg?branch=master)](https://travis-ci.com/pozs/classific) 
 
 A Rust library for classifications like comparators and equivalence classes.
 
